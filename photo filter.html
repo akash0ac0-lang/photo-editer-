@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="hi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ultimate Web Editor Pro</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
+    <style>
+        :root {
+            --primary: #00d4ff;
+            --bg: #0b0e14;
+            --card: #1c212c;
+            --text: #e2e8f0;
+            --accent: #3b82f6;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Left Toolbar */
+        .toolbar {
+            width: 80px;
+            background: #161b22;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 0;
+            border-right: 1px solid #30363d;
+            gap: 20px;
+        }
+
+        .tool-icon {
+            background: none;
+            border: none;
+            color: #8b949e;
+            cursor: pointer;
+            transition: 0.3s;
+            font-size: 20px;
+        }
+
+        .tool-icon:hover,
+        .tool-icon.active {
+            color: var(--primary);
+            transform: scale(1.1);
+        }
+
+        /* Main Workspace */
+        .workspace {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            background: #0d1117;
+        }
+
+        header {
+            padding: 15px 30px;
+            background: #161b22;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #30363d;
+        }
+
+        .canvas-area {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            padding: 20px;
+            position: relative;
+        }
+
+        #image-preview {
+            max-width: 100%;
+            max-height: 80vh;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            display: none;
+        }
+
+        /* Floating Text Box */
+        #text-layer {
+            position: absolute;
+            color: white;
+            font-size: 30px;
+            cursor: move;
+            display: none;
+            user-select: none;
+            z-index: 10;
+            font-weight: bold;
+        }
+
+        /* Right Sidebar */
+        .sidebar {
+            width: 300px;
+            background: var(--card);
+            border-left: 1px solid #30363d;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .control-group {
+            margin-bottom: 25px;
+        }
+
+        h3 {
+            font-size: 14px;
+            color: var(--primary);
+            text-transform: uppercase;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #30363d;
+            padding-bottom: 5px;
+        }
+
+        .slider-wrap {
+            margin-bottom: 12px;
+        }
+
+        label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 4px;
+            accent-color: var(--primary);
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        button {
+            background: #30363d;
+            color: white;
+            border: 1px solid #444c56;
+            padding: 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        button:hover {
+            background: #444c56;
+            border-color: var(--primary);
+        }
+
+        .btn-main {
+            background: var(--accent);
+            color: white;
+            border: none;
+            font-weight: bold;
+            padding: 10px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="toolbar">
+        <button class="tool-icon" onclick="document.getElementById('file-input').click()" title="Upload">📂</button>
+        <button class="tool-icon" id="crop-btn" title="Crop">✂️</button>
+        <button class="tool-icon" id="text-btn" title="Add Text">T</button>
+        <button class="tool-icon" onclick="resetAll()" title="Reset">🔄</button>
+    </div>
+
+    <div class="workspace">
+        <header>
+            <h2 style="font-size: 18px; margin:0;">AI Photo Editor Pro</h2>
+            <div style="display: flex; gap: 10px;">
+                <input type="file" id="file-input" hidden accept="image/*">
+                <button class="btn-main" onclick="downloadImage()">SAVE IMAGE</button>
+            </div>
+        </header>
+
+        <div class="canvas-area">
+            <div id="text-layer" draggable="true">YOUR TEXT</div>
+            <img id="image-preview" src="">
+            <div id="upload-msg" style="text-align:center">
+                <p style="font-size: 18px; color: #8b949e;">No Image Selected</p>
+                <button onclick="document.getElementById('file-input').click()" style="padding:10px 20px">Choose
+                    File</button>
+            </div>
+        </div>
+
+        <div id="crop-ui" class="hidden"
+            style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: #161b22; padding: 10px; border-radius: 10px; display: flex; gap: 10px;">
+            <button onclick="applyCrop()">Apply Crop</button>
+            <button onclick="cancelCrop()">Cancel</button>
+        </div>
+    </div>
+
+    <div class="sidebar">
+        <div id="text-controls" class="control-group hidden">
+            <h3>Text Settings</h3>
+            <input type="text" id="text-input" placeholder="Type here..."
+                style="width:90%; padding:8px; margin-bottom:10px; background:#0d1117; color:white; border:1px solid #30363d;">
+            <label>Color: <input type="color" id="text-color" value="#ffffff"></label>
+            <label>Size: <input type="range" id="text-size" min="10" max="100" value="30"></label>
+        </div>
+
+        <div class="control-group">
+            <h3>Adjustments</h3>
+            <div class="slider-wrap"><label>Brightness</label><input type="range" id="brightness" min="0" max="200"
+                    value="100"></div>
+            <div class="slider-wrap"><label>Contrast</label><input type="range" id="contrast" min="0" max="200"
+                    value="100"></div>
+            <div class="slider-wrap"><label>Saturation</label><input type="range" id="saturate" min="0" max="200"
+                    value="100"></div>
+        </div>
+
+        <div class="control-group">
+            <h3>Filters</h3>
+            <div class="grid-2">
+                <button onclick="setFilter('sepia(100%)')">Sepia</button>
+                <button onclick="setFilter('grayscale(100%)')">B&W</button>
+                <button onclick="setFilter('hue-rotate(90deg)')">Neon</button>
+                <button onclick="setFilter('invert(100%)')">Invert</button>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <h3>Transform</h3>
+            <div class="grid-2">
+                <button onclick="rotateImg(-90)">Rotate L</button>
+                <button onclick="rotateImg(90)">Rotate R</button>
+                <button onclick="flip('X')">Flip H</button>
+                <button onclick="flip('Y')">Flip V</button>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <h3>Border</h3>
+            <label>Thickness: <input type="range" id="border-size" min="0" max="50" value="0"></label>
+            <label>Border Color: <input type="color" id="border-color" value="#ffffff"></label>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+    <script>
+        const img = document.getElementById('image-preview');
+        const textLayer = document.getElementById('text-layer');
+        let cropper, rotation = 0, flipX = 1, flipY = 1, activeFilter = '';
+
+        // --- Upload ---
+        document.getElementById('file-input').addEventListener('change', function (e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            img.src = URL.createObjectURL(file);
+            img.onload = () => {
+                img.style.display = 'block';
+                document.getElementById('upload-msg').style.display = 'none';
+                resetAll();
+            };
+        });
+
+        // --- Main Filters Logic ---
+        function applyAll() {
+            const b = document.getElementById('brightness').value;
+            const c = document.getElementById('contrast').value;
+            const s = document.getElementById('saturate').value;
+            const borderSize = document.getElementById('border-size').value;
+            const borderColor = document.getElementById('border-color').value;
+
+            img.style.filter = `brightness(${b}%) contrast(${c}%) saturate(${s}%) ${activeFilter}`;
+            img.style.transform = `rotate(${rotation}deg) scale(${flipX}, ${flipY})`;
+            img.style.border = `${borderSize}px solid ${borderColor}`;
+        }
+
+        document.querySelectorAll('input[type="range"], input[type="color"]').forEach(el => el.addEventListener('input', applyAll));
+
+        function setFilter(f) { activeFilter = f; applyAll(); }
+        function rotateImg(deg) { rotation += deg; applyAll(); }
+        function flip(dir) { if (dir === 'X') flipX *= -1; else flipY *= -1; applyAll(); }
+
+        // --- Text Functionality ---
+        document.getElementById('text-btn').addEventListener('click', () => {
+            textLayer.style.display = 'block';
+            document.getElementById('text-controls').classList.toggle('hidden');
+        });
+
+        document.getElementById('text-input').addEventListener('input', (e) => textLayer.innerText = e.target.value);
+        document.getElementById('text-color').addEventListener('input', (e) => textLayer.style.color = e.target.value);
+        document.getElementById('text-size').addEventListener('input', (e) => textLayer.style.fontSize = e.target.value + 'px');
+
+        // Text Dragging
+        let isDragging = false;
+        textLayer.onmousedown = (e) => { isDragging = true; };
+        document.onmousemove = (e) => {
+            if (isDragging) {
+                textLayer.style.left = e.clientX - 150 + 'px';
+                textLayer.style.top = e.clientY - 100 + 'px';
+            }
+        };
+        document.onmouseup = () => isDragging = false;
+
+        // --- Crop Functionality ---
+        document.getElementById('crop-btn').addEventListener('click', () => {
+            document.getElementById('crop-ui').classList.remove('hidden');
+            cropper = new Cropper(img, { aspectRatio: NaN, viewMode: 1 });
+        });
+
+        function applyCrop() {
+            img.src = cropper.getCroppedCanvas().toDataURL();
+            cancelCrop();
+        }
+
+        function cancelCrop() {
+            cropper.destroy();
+            document.getElementById('crop-ui').classList.add('hidden');
+        }
+
+        function resetAll() {
+            rotation = 0; flipX = 1; flipY = 1; activeFilter = '';
+            document.getElementById('brightness').value = 100;
+            document.getElementById('contrast').value = 100;
+            document.getElementById('saturate').value = 100;
+            document.getElementById('border-size').value = 0;
+            textLayer.style.display = 'none';
+            applyAll();
+        }
+
+        // --- Professional Download ---
+        function downloadImage() {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = img.naturalWidth;
+            canvas.height = img.naturalHeight;
+
+            ctx.filter = img.style.filter;
+            ctx.drawImage(img, 0, 0);
+
+            // Draw Text on Canvas
+            if (textLayer.style.display !== 'none') {
+                ctx.filter = 'none';
+                ctx.font = `${document.getElementById('text-size').value * 2}px Arial`;
+                ctx.fillStyle = document.getElementById('text-color').value;
+                ctx.fillText(textLayer.innerText, 50, 100);
+            }
+
+            const link = document.createElement('a');
+            link.download = 'pro-edited.png';
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+    </script>
+</body>
+
+</html>
